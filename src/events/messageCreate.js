@@ -17,6 +17,7 @@ import {
   isValidCountingMessage,
   recordCorrectCount,
 } from '../services/countingGameService.js';
+import { handleAuditionDMReply } from '../commands/audition/audition.js';
 
 const MESSAGE_XP_RATE_LIMIT_ATTEMPTS = 12;
 const MESSAGE_XP_RATE_LIMIT_WINDOW_MS = 10000;
@@ -25,7 +26,15 @@ export default {
   name: Events.MessageCreate,
   async execute(message, client) {
     try {
-      if (message.author.bot || !message.guild) return;
+      if (message.author.bot) return;
+
+      // Handle DMs separately — this is where audition replies come in
+      if (!message.guild) {
+        await handleAuditionDMReply(client, message).catch((err) => {
+          logger.error('Error in handleAuditionDMReply:', err);
+        });
+        return;
+      }
 
       logger.debug(`Message received from ${message.author.tag}: ${message.content}`);
 
