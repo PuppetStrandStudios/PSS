@@ -2,7 +2,7 @@ import { SlashCommandBuilder, MessageFlags } from 'discord.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
 import { successEmbed, createEmbed } from '../../utils/embeds.js';
 import { logger } from '../../utils/logger.js';
-import { activeAuditions } from './store.js';
+import { activeAuditions } from '../../utils/store.js';
 
 const NEW_TIME_MESSAGE = (newTime) =>
     `Thank you for your patience! Unfortunately that time doesn't quite work for us. Could you do **${newTime}** instead? Let us know if that works for you!`;
