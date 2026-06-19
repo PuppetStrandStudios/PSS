@@ -1,7 +1,7 @@
 import { SlashCommandBuilder, MessageFlags } from 'discord.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
 import { createEmbed } from '../../utils/embeds.js';
-import { logger } from '../../utils/logger.js';
+import { activeAuditions } from '../../utils/store.js';
 
 export default {
     data: new SlashCommandBuilder()
