@@ -11,11 +11,17 @@ import { activeAuditions } from '../../utils/store.js';
 const LOG_CHANNEL_NAME = 'audition-log';
 const NOTIFY_ROLE_NAME = 'Director';
 
+const CONTACT_HANDLE = '@puppetstrandstudios';
+const SERVER_LINK = 'https://discord.gg/AX6tHhsPVV';
+
 const OPENING_MESSAGE = (name, role) =>
     `Hello there! ${name} thank you so much for applying for ${role}! We would like to invite you for an interview with us. If you are still interested in the role and being part of our project, please let us know when the perfect time you can do your interview and we will try to arrange it!`;
 
 const MISSING_INFO_MESSAGE =
     `Thank you for getting back to us! To make sure we get this right, could you please provide:\n📅 **Date** — e.g. Monday 23rd June\n🕐 **Time** — e.g. 3:00 PM\n🌍 **Timezone** — e.g. EST, PST, AEST\n\nThis helps us make sure the time works fairly for both of us! 😊`;
+
+const QUESTIONS_MESSAGE =
+    `Got any questions or need a hand with anything? Feel free to DM us directly at **${CONTACT_HANDLE}**, or hop into our server here: ${SERVER_LINK} 😊`;
 
 // ============================================
 // HELPERS
@@ -37,6 +43,14 @@ export async function logToChannel(guild, message) {
     }
 }
 
+// Detects if a message looks like a question rather than a date/time reply
+function looksLikeQuestion(content) {
+    const lower = content.toLowerCase().trim();
+    const helpWords = ['help', 'confused', "don't understand", 'dont understand', 'what do you mean', "i'm lost", 'im lost', 'unsure', 'not sure'];
+    const isQuestion = lower.includes('?') || helpWords.some(w => lower.includes(w));
+    return isQuestion;
+}
+
 export async function handleAuditionDMReply(client, message) {
     if (message.guild) return;
     if (message.author.bot) return;
@@ -47,6 +61,15 @@ export async function handleAuditionDMReply(client, message) {
 
     const content = message.content.toLowerCase();
     const guild = client.guilds.cache.get(audition.guildId);
+
+    // Catch questions/confusion at ANY stage of the conversation
+    if (looksLikeQuestion(message.content)) {
+        await message.author.send(QUESTIONS_MESSAGE);
+        if (guild) {
+            await logToChannel(guild, `❓ **Applicant asked a question / needs help**\n👤 ${message.author.username}\n💬 "${message.content}"`);
+        }
+        return; // don't process further this message
+    }
 
     if (audition.stage === 'waiting_for_time') {
         const hasDate = /\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday|\d{1,2}(st|nd|rd|th)?|\d{1,2}\/\d{1,2}|\d{1,2}-\d{1,2})\b/i.test(message.content);
@@ -72,7 +95,7 @@ export async function handleAuditionDMReply(client, message) {
 
     } else if (audition.stage === 'waiting_for_applicant_confirmation') {
         const APPROVED_MESSAGE = (time) => `Great news! Your interview has been confirmed for **${time}**. We look forward to speaking with you! 😊`;
-        const CONTACT_MESSAGE = `No worries at all! Please feel free to DM us directly and we'll be happy to help sort out a time that works for you! 😊`;
+        const CONTACT_MESSAGE = `No worries at all! Please feel free to DM us directly at **${CONTACT_HANDLE}** or hop into our server here: ${SERVER_LINK} and we'll be happy to help sort out a time that works for you! 😊`;
 
         if (content.includes('yes') || content.includes('sure') || content.includes('ok') || content.includes('works') || content.includes('fine') || content.includes('good')) {
             await message.author.send(APPROVED_MESSAGE(audition.proposedTime));
