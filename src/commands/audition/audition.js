@@ -2,7 +2,7 @@ import { SlashCommandBuilder, MessageFlags } from 'discord.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
 import { successEmbed, createEmbed } from '../../utils/embeds.js';
 import { logger } from '../../utils/logger.js';
-import { activeAuditions } from './store.js';
+import { activeAuditions } from '../../utils/store.js';
 
 // ============================================
 // CONFIGURATION — EDIT THESE TO YOUR LIKING
