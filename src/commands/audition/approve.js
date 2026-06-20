@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, MessageFlags } from 'discord.js';
+import { SlashCommandBuilder, MessageFlags, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder } from 'discord.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
 import { successEmbed, createEmbed } from '../../utils/embeds.js';
 import { logger } from '../../utils/logger.js';
@@ -21,26 +21,38 @@ export default {
 
     async execute(interaction) {
         try {
-            const deferSuccess = await InteractionHelper.safeDefer(interaction, { flags: MessageFlags.Ephemeral });
-            if (!deferSuccess) return;
-
             const target = interaction.options.getUser('user');
             const audition = activeAuditions.get(target.id);
 
             if (!audition) {
-                return await InteractionHelper.safeEditReply(interaction, {
-                    embeds: [createEmbed({ title: 'Not Found', description: `❌ No active audition found for **${target.username}**`, color: 'error' })]
+                return await interaction.reply({
+                    embeds: [createEmbed({ title: 'Not Found', description: `❌ No active audition found for **${target.username}**`, color: 'error' })],
+                    flags: MessageFlags.Ephemeral
                 });
             }
 
+            // Send the confirmation DM now, store the rest for after day selection
             await target.send(APPROVED_MESSAGE(audition.proposedTime));
             await logToChannel(interaction.guild,
-                `✅ **Audition Approved!**\n👤 ${target.username}\n🎭 Role: **${audition.role}**\n🕐 Time: **${audition.proposedTime}**`
+                `✅ **Audition Confirmed!**\n👤 ${target.username}\n🎭 Role: **${audition.role}**\n🕐 Time: **${audition.proposedTime}**`
             );
-            activeAuditions.delete(target.id);
 
-            return await InteractionHelper.safeEditReply(interaction, {
-                embeds: [successEmbed('Audition Approved', `✅ **${target.username}** has been notified of their confirmed time!`)]
+            // Ask: today or another day?
+            const row = new ActionRowBuilder().addComponents(
+                new ButtonBuilder()
+                    .setCustomId(`audition_today_${target.id}`)
+                    .setLabel('Today')
+                    .setStyle(ButtonStyle.Success),
+                new ButtonBuilder()
+                    .setCustomId(`audition_otherday_${target.id}`)
+                    .setLabel('Another day')
+                    .setStyle(ButtonStyle.Secondary)
+            );
+
+            return await interaction.reply({
+                content: `✅ **${target.username}** has been notified! \n\nWhen is this interview happening, so I can schedule the reminder?`,
+                components: [row],
+                flags: MessageFlags.Ephemeral
             });
         } catch (error) {
             logger.error('Approve command error:', error);
