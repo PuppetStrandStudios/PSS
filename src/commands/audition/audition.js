@@ -2,7 +2,7 @@ import { SlashCommandBuilder, MessageFlags } from 'discord.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
 import { successEmbed, createEmbed } from '../../utils/embeds.js';
 import { logger } from '../../utils/logger.js';
-import { activeAuditions } from '../../utils/store.js';
+import { activeAuditions } from './store.js';
 
 // ============================================
 // CONFIGURATION — EDIT THESE TO YOUR LIKING
@@ -18,7 +18,7 @@ const OPENING_MESSAGE = (name, role) =>
     `Hello there! ${name} thank you so much for applying for ${role}! We would like to invite you for an interview with us. If you are still interested in the role and being part of our project, please let us know when the perfect time you can do your interview and we will try to arrange it!`;
 
 const MISSING_INFO_MESSAGE =
-    `Thank you for getting back to us! To make sure we get this right, could you please provide:\n📅 **Date** — e.g. Monday 23rd June\n🕐 **Time** — e.g. 3:00 PM\n🌍 **Timezone** — e.g. EST, PST, AEST\n\nThis helps us make sure the time works fairly for both of us! 😊`;
+    `Thank you for getting back to us! To make sure we get this right, could you please provide:\n🕐 **Time** — e.g. 3:00 PM\n🌍 **Timezone** — e.g. EST, PST, AEST\n\n(A date is helpful too if you have one in mind!) This helps us make sure the time works fairly for both of us! 😊`;
 
 const QUESTIONS_MESSAGE =
     `Got any questions or need a hand with anything? Feel free to DM us directly at **${CONTACT_HANDLE}**, or hop into our server here: ${SERVER_LINK} 😊`;
@@ -51,6 +51,18 @@ function looksLikeQuestion(content) {
     return isQuestion;
 }
 
+function detectDate(content) {
+    return /\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday|\d{1,2}(st|nd|rd|th)?\s*(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)|\d{1,2}\/\d{1,2}|\d{1,2}-\d{1,2})\b/i.test(content);
+}
+
+function detectTime(content) {
+    return /\b(\d{1,2}(:\d{2})?\s*(am|pm)|(\d{1,2}:\d{2}))\b/i.test(content);
+}
+
+function detectTimezone(content) {
+    return /\b(gmt|bst|est|pst|cst|mst|aest|aedt|cet|ist|jst|utc|[+-]\d{1,2})\b/i.test(content);
+}
+
 export async function handleAuditionDMReply(client, message) {
     if (message.guild) return;
     if (message.author.bot) return;
@@ -72,18 +84,21 @@ export async function handleAuditionDMReply(client, message) {
     }
 
     if (audition.stage === 'waiting_for_time') {
-        const hasDate = /\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday|\d{1,2}(st|nd|rd|th)?|\d{1,2}\/\d{1,2}|\d{1,2}-\d{1,2})\b/i.test(message.content);
-        const hasTime = /\b(\d{1,2}(:\d{2})?\s*(am|pm)|(\d{1,2}:\d{2}))\b/i.test(message.content);
-        const hasTimezone = /\b(gmt|bst|est|pst|cst|mst|aest|aedt|cet|ist|jst|utc|[+-]\d{1,2})\b/i.test(message.content);
+        const hasDate = detectDate(message.content);
+        const hasTime = detectTime(message.content);
+        const hasTimezone = detectTimezone(message.content);
 
-        if (hasDate && hasTime && hasTimezone) {
+        // Time + timezone is enough to move forward — date is a bonus if given
+        if (hasTime && hasTimezone) {
             audition.stage = 'waiting_for_approval';
             audition.proposedTime = message.content;
+            audition.hasDate = hasDate;
             activeAuditions.set(userId, audition);
 
             const staffMember = await client.users.fetch(audition.requestedBy);
+            const dateNote = hasDate ? '' : '\n📅 *No specific date given — time/timezone only*';
             const approvalMsg =
-                `⏰ **Audition Time Proposed!**\n👤 Applicant: ${message.author.username}\n🎭 Role: **${audition.role}**\n🕐 Proposed time: **${message.content}**\n\nUse:\n✅ \`/approve\` to confirm\n❌ \`/rejecttime\` to suggest another time`;
+                `⏰ **Audition Time Proposed!**\n👤 Applicant: ${message.author.username}\n🎭 Role: **${audition.role}**\n🕐 Proposed time: **${message.content}**${dateNote}\n\nUse:\n✅ \`/approve\` to confirm\n❌ \`/rejecttime\` to suggest another time`;
 
             try { await staffMember.send(approvalMsg); } catch {}
             if (guild) await logToChannel(guild, approvalMsg);
